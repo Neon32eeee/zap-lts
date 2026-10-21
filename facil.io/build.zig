@@ -22,7 +22,7 @@ pub fn build_facilio(
     // Generate flags
     var flags = std.ArrayList([]const u8).empty;
     defer flags.deinit(b.allocator);
-    if (optimize != .Debug) try flags.append(b.allocator, "-Os");
+    if (optimize != .debug) try flags.append(b.allocator, "-Os");
     try flags.append(b.allocator, "-Wno-return-type-c-linkage");
     try flags.append(b.allocator, "-fno-sanitize=undefined");
 

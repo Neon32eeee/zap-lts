@@ -111,6 +111,8 @@ const ClientAuthReqHeaderFields = struct {
 };
 
 fn makeRequest(a: std.mem.Allocator, url: []const u8, auth: ?ClientAuthReqHeaderFields) !void {
+    defer zap.stop();
+
     var threaded: std.Io.Threaded = .init(a, .{});
     defer threaded.deinit();
     const io = threaded.io();
@@ -126,24 +128,31 @@ fn makeRequest(a: std.mem.Allocator, url: []const u8, auth: ?ClientAuthReqHeader
             break :blk "";
         }
     };
-    _ = try http_client.fetch(.{
-        .location = .{ .url = url },
-        .headers = .{
-            .authorization = .omit,
-        },
-        .extra_headers = blk: {
-            if (auth) |auth_fields| {
-                break :blk &.{.{
-                    .name = auth_fields.auth.headerFieldStrHeader(),
-                    .value = auth_string,
-                }};
-            } else {
-                break :blk &.{};
-            }
-        },
-    });
 
-    zap.stop();
+    var attempt: usize = 0;
+    while (true) : (attempt += 1) {
+        if (http_client.fetch(.{
+            .location = .{ .url = url },
+            .headers = .{
+                .authorization = .omit,
+            },
+            .extra_headers = blk: {
+                if (auth) |auth_fields| {
+                    break :blk &.{.{
+                        .name = auth_fields.auth.headerFieldStrHeader(),
+                        .value = auth_string,
+                    }};
+                } else {
+                    break :blk &.{};
+                }
+            },
+        })) |_| {
+            return;
+        } else |err| {
+            if (err != error.ConnectionRefused or attempt >= 200) return err;
+            io.sleep(std.Io.Duration.fromNanoseconds(10 * std.time.ns_per_ms), .awake) catch {};
+        }
+    }
 }
 
 fn makeRequestThread(a: std.mem.Allocator, url: []const u8, auth: ?ClientAuthReqHeaderFields) !std.Thread {
@@ -180,6 +189,7 @@ pub const Endpoint = struct {
 //
 
 test "BearerAuthSingle authenticateRequest OK" {
+    received_response = "null";
     const a = std.testing.allocator;
     const token = "ABCDEFG";
 
@@ -212,7 +222,7 @@ test "BearerAuthSingle authenticateRequest OK" {
 
     try listener.register(&auth_ep);
 
-    listener.listen() catch {};
+    try listener.listen();
 
     const thread = try makeRequestThread(a, "http://127.0.0.1:3001/test", .{ .auth = .Bearer, .token = token });
     defer thread.join();
@@ -227,6 +237,7 @@ test "BearerAuthSingle authenticateRequest OK" {
 }
 
 test "BearerAuthSingle authenticateRequest test-unauthorized" {
+    received_response = "null";
     const a = std.testing.allocator;
     const token = "ABCDEFG";
 
@@ -280,6 +291,7 @@ test "BearerAuthSingle authenticateRequest test-unauthorized" {
 }
 
 test "BearerAuthMulti authenticateRequest OK" {
+    received_response = "null";
     const a = std.testing.allocator;
     const token = "ABCDEFG";
 
@@ -327,6 +339,7 @@ test "BearerAuthMulti authenticateRequest OK" {
 }
 
 test "BearerAuthMulti authenticateRequest test-unauthorized" {
+    received_response = "null";
     const a = std.testing.allocator;
     const token = "invalid";
 
@@ -359,7 +372,7 @@ test "BearerAuthMulti authenticateRequest test-unauthorized" {
 
     try listener.register(&auth_ep);
 
-    listener.listen() catch {};
+    try listener.listen();
 
     const thread = try makeRequestThread(a, "http://127.0.0.1:3004/test", .{ .auth = .Bearer, .token = "invalid" });
     defer thread.join();
@@ -374,6 +387,7 @@ test "BearerAuthMulti authenticateRequest test-unauthorized" {
 }
 
 test "BasicAuth Token68 authenticateRequest" {
+    received_response = "null";
     const a = std.testing.allocator;
     const token = "QWxhZGRpbjpvcGVuIHNlc2FtZQ==";
 
@@ -411,7 +425,7 @@ test "BasicAuth Token68 authenticateRequest" {
 
     try listener.register(&auth_ep);
 
-    listener.listen() catch {};
+    try listener.listen();
 
     const thread = try makeRequestThread(a, "http://127.0.0.1:3005/test", .{ .auth = .Basic, .token = token });
     defer thread.join();
@@ -426,6 +440,7 @@ test "BasicAuth Token68 authenticateRequest" {
 }
 
 test "BasicAuth Token68 authenticateRequest test-unauthorized" {
+    received_response = "null";
     const a = std.testing.allocator;
     const token = "QWxhZGRpbjpvcGVuIHNlc2FtZQ==";
 
@@ -463,7 +478,7 @@ test "BasicAuth Token68 authenticateRequest test-unauthorized" {
 
     try listener.register(&auth_ep);
 
-    listener.listen() catch {};
+    try listener.listen();
 
     const thread = try makeRequestThread(a, "http://127.0.0.1:3006/test", .{ .auth = .Basic, .token = "invalid" });
     defer thread.join();
@@ -478,6 +493,7 @@ test "BasicAuth Token68 authenticateRequest test-unauthorized" {
 }
 
 test "BasicAuth UserPass authenticateRequest" {
+    received_response = "null";
     const a = std.testing.allocator;
 
     // setup listener
@@ -525,7 +541,7 @@ test "BasicAuth UserPass authenticateRequest" {
 
     try listener.register(&auth_ep);
 
-    listener.listen() catch {};
+    try listener.listen();
 
     const thread = try makeRequestThread(a, "http://127.0.0.1:3007/test", .{ .auth = .Basic, .token = encoded });
     defer thread.join();
@@ -540,6 +556,7 @@ test "BasicAuth UserPass authenticateRequest" {
 }
 
 test "BasicAuth UserPass authenticateRequest test-unauthorized" {
+    received_response = "null";
     const a = std.testing.allocator;
 
     // setup listener
@@ -590,7 +607,7 @@ test "BasicAuth UserPass authenticateRequest test-unauthorized" {
 
     try listener.register(&auth_ep);
 
-    listener.listen() catch {};
+    try listener.listen();
 
     const thread = try makeRequestThread(a, "http://127.0.0.1:3008/test", .{ .auth = .Basic, .token = "invalid" });
     defer thread.join();

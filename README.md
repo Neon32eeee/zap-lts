@@ -1,18 +1,3 @@
-# This repository has been archived
-
-**Thank you to all contributors!** Whether you contributed code, documentation,
-bug reports, testing, ideas, or support for other users, you helped make Zap what
-it is. Thank you for helping build and improve Zap.
-
-But fear not! An alternative is on the way:
-**[Baz — Bounded Async Zap](https://github.com/technologylab-ai/baz)**
-([website & documentation](https://technologylab-ai.github.io/baz/)),
-a pure Zig successor built for Zig 0.16.0, based on
-**[bounded/http](https://github.com/technologylab-ai/bounded-http)**
-([website & documentation](https://technologylab-ai.github.io/bounded-http/)).
-
----
-
 # ⚡zap⚡ - blazingly fast backends in zig
 
 ![](https://github.com/zigzap/zap/actions/workflows/build-current-zig.yml/badge.svg) ![](https://github.com/zigzap/zap/actions/workflows/mastercheck.yml/badge.svg) [![Discord](https://img.shields.io/discord/1107835896356675706?label=chat&logo=discord&style=plastic)](https://discord.gg/jQAAN6Ubyj)
@@ -40,7 +25,7 @@ proved to be:
 ## FAQ:
 
 - Q: **What version of Zig does Zap support?**
-    - Zap uses the latest stable zig release (0.16.0), so you don't have to keep
+    - Zap uses the latest stable zig release (0.17.0), so you don't have to keep
       up with frequent breaking changes. It's an "LTS feature".
 - Q: **Can Zap build with Zig's master branch?**
     - See the `zig-master` branch. Please note that the zig-master branch is not
@@ -313,7 +298,7 @@ In your zig project folder (where `build.zig` is located), run:
 
 <!-- INSERT_DEP_BEGIN -->
 ```
-zig fetch --save "git+https://github.com/zigzap/zap#v0.11.0"
+zig fetch --save "git+https://github.com/Neon32eeee/zap-lts#main"
 ```
 <!-- INSERT_DEP_END -->
 
@@ -321,7 +306,7 @@ Then, in your `build.zig`'s `build` function, add the following before
 `b.installArtifact(exe)`:
 
 ```zig
-    const zap = b.dependency("zap", .{
+    const zap = b.dependency("zap-lts", .{
         .target = target,
         .optimize = optimize,
         .openssl = false, // set to true to enable TLS support
